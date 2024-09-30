@@ -5,7 +5,7 @@ def save_position_variable(variable_name, position):
         file.write(f"{variable_name} = {position}\n\n")
 
 #Robot IP
-RoIp = "Removed for safety"
+RoIp = "169.254.45.17"
 
 location_count = 1
 gripper_status = 0
