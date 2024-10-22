@@ -1,4 +1,4 @@
-import sys, time, datetime, math
+import sys, copy, time, datetime, math
 import numpy as np
 import rtde_control, rtde_receive
 from rtde_io import RTDEIOInterface as RTDEIO
@@ -127,6 +127,53 @@ class Robot_Control:
 
         else:
             print("Hell noo that ain't right!")
+
+    def Gripper_Swap(self, on_off):
+        
+        speed = 0.2
+        slow = 0.05
+
+        case_on_off = on_off.lower()
+
+        if case_on_off == "mount":
+            Gripper_Approach = copy.deepcopy(Var_LSCAT.Gripper_Mount)
+            Gripper_Detach = copy.deepcopy(Var_LSCAT.Gripper_Mount)
+            Gripper_Approach[2] += 0.15
+            Gripper_Detach[0] -= 0.05
+            Gripper_Free = Gripper_Detach
+            Gripper_Free[2] += 0.2
+            
+            self.rtde_c.moveL(Gripper_Approach, speed, speed)
+            time.sleep(1)
+            self.rtde_c.moveL(Var_LSCAT.Gripper_Mount, slow, slow)
+            time.sleep(1)
+            self.rtde_c.moveL(Gripper_Detach)
+            time.sleep(1)
+            self.rtde_c.moveL(Gripper_Free, slow, slow)
+            self.rtde_c.moveL(Var_LSCAT.Wait_Pos, speed, speed)
+
+        elif case_on_off == "dismount":
+            Gripper_Attach = copy.deepcopy(Var_LSCAT.Gripper_Mount)
+            Gripper_Attach[0] += 0.05
+            Gripper_Approach = Gripper_Attach
+            Gripper_Approach[2] += 0.15
+            Gripper_Free = copy.deepcopy(Var_LSCAT.Gripper_Mount)
+            Gripper_Free[2] += 0.1
+
+            self.rtde_c.moveL(Gripper_Approach, speed, speed)
+            time.sleep(1)
+            self.rtde_c.moveL(Gripper_Attach, speed, speed)
+            time.sleep(1)
+            self.rtde_c.moveL(Var_LSCAT.Gripper_Mount)
+            time.sleep(1)
+            self.rtde_c.moveL(Gripper_Free, slow, slow)
+            self.rtde_c.moveL(Var_LSCAT.Wait_Pos, speed, speed)
+
+        else:
+            print("Hell noo that ain't right!")
+
+
+
 
 class Joystick_Robot_Controller:
     def __init__(self, Robot_IP):
