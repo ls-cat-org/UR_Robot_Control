@@ -130,42 +130,62 @@ class Robot_Control:
 
     def Gripper_Swap(self, on_off):
         
-        speed = 0.2
-        slow = 0.05
+        speed = 0.5
+        slow = 0.1
 
-        case_on_off = on_off.lower()
+        command = on_off.lower()
 
-        if case_on_off == "mount":
+        if command == "mount":
+            self.rtde_io.setStandardDigitalOut(1, False)
             Gripper_Approach = copy.deepcopy(Var_LSCAT.Gripper_Mount)
+            Gripper_Approach[2] += 0.05
+
             Gripper_Detach = copy.deepcopy(Var_LSCAT.Gripper_Mount)
-            Gripper_Approach[2] += 0.15
-            Gripper_Detach[0] -= 0.05
-            Gripper_Free = Gripper_Detach
-            Gripper_Free[2] += 0.2
+            Gripper_Detach[0] -= 0.06
+
+            Gripper_Free = copy.deepcopy(Var_LSCAT.Gripper_Mount)
+            Gripper_Free[0] -= 0.06
+            Gripper_Free[2] += 0.325
             
+            print(Gripper_Approach)
             self.rtde_c.moveL(Gripper_Approach, speed, speed)
-            time.sleep(1)
+            #time.sleep(0.5)
+            print(Var_LSCAT.Gripper_Mount)
             self.rtde_c.moveL(Var_LSCAT.Gripper_Mount, slow, slow)
-            time.sleep(1)
-            self.rtde_c.moveL(Gripper_Detach)
-            time.sleep(1)
-            self.rtde_c.moveL(Gripper_Free, slow, slow)
+            time.sleep(0.5)
+            
+
+            print(Gripper_Detach)
+            self.rtde_c.moveL(Gripper_Detach, slow, slow)
+            time.sleep(0.5)
+            self.rtde_io.setStandardDigitalOut(1, True)
+            time.sleep(0.5)
+            self.rtde_io.setStandardDigitalOut(0, True)
+            time.sleep(0.5)
+            self.rtde_io.setStandardDigitalOut(0, False)
+            self.rtde_c.moveL(Gripper_Free, speed, speed)
             self.rtde_c.moveL(Var_LSCAT.Wait_Pos, speed, speed)
 
-        elif case_on_off == "dismount":
+
+
+        elif command == "dismount":
+            self.rtde_io.setStandardDigitalOut(1, False)
             Gripper_Attach = copy.deepcopy(Var_LSCAT.Gripper_Mount)
-            Gripper_Attach[0] += 0.05
-            Gripper_Approach = Gripper_Attach
-            Gripper_Approach[2] += 0.15
+            Gripper_Attach[0] -= 0.06
+
+            Gripper_Approach = copy.deepcopy(Var_LSCAT.Gripper_Mount)
+            Gripper_Approach[0] -= 0.06
+            Gripper_Approach[2] += 0.325
+
             Gripper_Free = copy.deepcopy(Var_LSCAT.Gripper_Mount)
-            Gripper_Free[2] += 0.1
+            Gripper_Free[2] += 0.05
 
             self.rtde_c.moveL(Gripper_Approach, speed, speed)
-            time.sleep(1)
+            #time.sleep(0.5)
             self.rtde_c.moveL(Gripper_Attach, speed, speed)
-            time.sleep(1)
-            self.rtde_c.moveL(Var_LSCAT.Gripper_Mount)
-            time.sleep(1)
+            #time.sleep(0.5)
+            self.rtde_c.moveL(Var_LSCAT.Gripper_Mount, slow, slow)
+            time.sleep(0.5)
             self.rtde_c.moveL(Gripper_Free, slow, slow)
             self.rtde_c.moveL(Var_LSCAT.Wait_Pos, speed, speed)
 
