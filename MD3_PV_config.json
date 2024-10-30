@@ -1,0 +1,13 @@
+{
+    "Cryo Status": "MD3:CryoIsOut",
+    "Back Light": "MD3:BackLightIsOn",
+    "Smart Magnet": "MD3:Magnet",
+    "Beamstop Position": "MD3:BeamstopPosition",
+    "Capillary Position": "MD3:CapillaryPosition",
+    "Centering Table": "MD3:CenteringTablePosition",
+    "Alignment Table": "MD3:AlignmentTablePosition",
+    "Sample Holder Length": "MD3:SampleHolderLength",
+    "Sample Mounted": "MD3:SampleIsLoaded",
+    "Transfer Mode": "MD3:TransferMode",
+    "Position Safety Check": "MD3:CheckPositionSafety"
+}
