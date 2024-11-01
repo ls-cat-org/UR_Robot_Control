@@ -1,8 +1,7 @@
-import sys, copy, time
-import json
+import sys, copy, time, json, epics
 import Var_LSCAT
 from LS_Robot_Classes import Robot_Control
-from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QComboBox, QPushButton
+from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QComboBox, QPushButton, QTextEdit
 
 class PuckSelector(QWidget):
     def __init__(self, data):
@@ -18,6 +17,11 @@ class PuckSelector(QWidget):
             self.puck_combo.addItem(puck["Puck Name"])
         self.puck_combo.currentIndexChanged.connect(self.populate_lists)
         layout.addWidget(self.puck_combo)
+
+                # Create a log box
+        self.log_box = QTextEdit(self)
+        self.log_box.setReadOnly(True)  # Make it read-only
+        layout.addWidget(self.log_box)
 
         self.pin_combo = QComboBox()
         self.pin_combo.addItem("Select a Pin")
@@ -47,6 +51,11 @@ class PuckSelector(QWidget):
         self.setLayout(layout)
 
         self.robot = Robot_Control(Var_LSCAT.RoIp)
+        self.pvs = {}
+
+    def log(self, message):
+        #Append a message to the log box
+        self.log_box.append(message)
 
     def populate_lists(self):
         selected_puck_name = self.puck_combo.currentText()
@@ -60,12 +69,16 @@ class PuckSelector(QWidget):
                 self.pin_combo.addItems(pins)
                 print(pins)
                 print("Noodles")
-                
+
+    def load_pvs(self, filename='MD3_PV_config.json'):
+        with open(filename, 'r') as file:
+            self.pvs = json.load(filename)
+            self.log("Populated Available PVs")
+         
     def select_pin(self):
         self.selected_pin_name = self.pin_combo.currentText()
-        print("Noodles, but more")
         if self.selected_pin_name != "Select a Pin":
-            self.selected_pin = self.pin_positions.get(self.selected_pin_name, "Variable is a No-No")
+            self.selected_pin = self.pin_positions.get(self.selected_pin_name, "Error: Something is wrong :(")
             print(self.selected_pin_name)
             print(self.selected_pin)
 
@@ -73,28 +86,45 @@ class PuckSelector(QWidget):
         mount_offset = copy.deepcopy(Var_LSCAT.MX_Pin_Sample_Position)
         mount_offset[2] = 0.5
         speed = 2
-
         self.robot.Move_to_Position(Var_LSCAT.Path_Near_Dewer, speed, 0.5)
-        #self.robot.Move_to_Position(Var_LSCAT.Path_Near_MD3, speed, 0.5)
         self.robot.Move_to_Position(mount_offset, speed, 0.5)
 
     def path_from_MD3(self):
         mount_offset = copy.deepcopy(Var_LSCAT.MX_Pin_Sample_Position)
         mount_offset[2] = 0.5
-        
         speed = 0.1
         self.robot.Move_to_Position(mount_offset, speed, speed)
         speed = 2
-        #self.robot.Move_to_Position(Var_LSCAT.Path_Near_MD3, speed, speed)
         self.robot.Move_to_Position(Var_LSCAT.Path_Near_Dewer, speed, speed)
 
     def mount_pin(self):
+
+        self.log("Checking Pin Mount Status..")
+
+        if epics.caget(self.pvs['Sample Is Mounted']) == 1:
+            self.log("Sample is already mounted")
+            return
+
+        print("Mounting Sample..")
+
+        epics.caput(self.pvs['Transfer Mode'], 2)
+        starttime = time.time
+
+        while time.time() - starttime < 10:
+            if epics.caget([self.pvs['Use Sample Changer']]):
+                self.log("MD3 in correct position, mounting sample.")
+                break
+            time.sleep(1)
+
+        else:
+            self.log("TIMEOUT: MD3 response took too long to respond")
+            return
+            
         self.mount_move(self.selected_pin)
         self.pin_to_dismount = self.selected_pin
 
     def mount_move(self, pin_to_mount):
-
-        print(f"Moving robot to {self.selected_pin_name}")
+        self.log(f"Moving robot to {self.selected_pin_name}")
         speed = 0.75
 
         #Copy new position for height offset as needed
@@ -102,7 +132,6 @@ class PuckSelector(QWidget):
         pin_offset_pos[2] = 0.25
         
         self.robot.MXGripper('off')
-        #self.robot.Move_to_Position(Var_LSCAT.Dewer_Hover,speed, speed)
         self.robot.Move_to_Position(pin_offset_pos, speed, speed)
         self.robot.Move_to_Position(pin_to_mount, speed, speed)
         time.sleep(0.5)
@@ -120,9 +149,29 @@ class PuckSelector(QWidget):
         self.path_from_MD3()
 
         self.robot.Move_to_Position(pin_offset_pos, speed, speed)
-        print("Mount Complete.")
+        self.log("Mount Complete.")
 
     def dismount_pin(self):
+
+        self.log("Checking Pin Mount Status..")
+        if epics.caget(self.pvs['Sample Is Mounted']) == 0:
+            self.log("No sample mounted!")
+            return
+        
+        epics.caput(self.pvs['Transfer Mode'], 2)
+        starttime = time.time
+
+        while time.time() - starttime < 10:
+            if epics.caget([self.pvs['Use Sample Changer']]):
+                self.log("MD3 in correct position, dismounting sample.")
+                break
+            time.sleep(1)
+
+        else:
+            self.log("TIMEOUT: MD3 response took too long to respond")
+            return
+        
+        print("Disounting Sample..")
         self.dismount_move(self.pin_to_dismount)
 
     def dismount_move(self, pin_to_dismount):
@@ -141,7 +190,6 @@ class PuckSelector(QWidget):
         time.sleep(0.05)
         self.robot.MXGripper('on')
         time.sleep(0.5)
-
         self.path_from_MD3()
 
         speed = 0.75
