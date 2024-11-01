@@ -9,5 +9,6 @@
     "Sample Holder Length": "MD3:SampleHolderLength",
     "Sample Mounted": "MD3:SampleIsLoaded",
     "Transfer Mode": "MD3:TransferMode",
-    "Position Safety Check": "MD3:CheckPositionSafety"
+    "Position Safety Check": "MD3:CheckPositionSafety",
+    "Use Sample Changer": "MD3:UseSampleChanger"
 }
