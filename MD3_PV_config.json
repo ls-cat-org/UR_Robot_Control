@@ -1,7 +1,7 @@
 {
     "Cryo Status": "MD3:CryoIsOut",
     "Back Light": "MD3:BackLightIsOn",
-    "Smart Magnet": "MD3:Magnet",
+    "Smart Magnet": "MD3:MagnetIsOn",
     "Beamstop Position": "MD3:BeamstopPosition",
     "Capillary Position": "MD3:CapillaryPosition",
     "Centering Table": "MD3:CenteringTablePosition",
@@ -9,6 +9,9 @@
     "Sample Holder Length": "MD3:SampleHolderLength",
     "Sample Mounted": "MD3:SampleIsLoaded",
     "Transfer Mode": "MD3:TransferMode",
+    "Set Phase (Mount Mode)": "MD3:CurrentPhase",
     "Position Safety Check": "MD3:CheckPositionSafety",
-    "Use Sample Changer": "MD3:UseSampleChanger"
+    "Use Sample Changer": "MD3:UseSampleChanger",
+    "Current Sample": "UR5:CurrentSample",
+    "Sample To Mount": "UR5:SampleToMount"
 }
