@@ -133,8 +133,6 @@ class MX_Robot:
         
         selected_pin = epics.caget('UR5:CurrentSample')
         position = self.get_coords('UR5:CurrentSample')
-
-        print(f"Dismounting sample from MD3 to {selected_pin}")
         
         epics.caput(self.pvs['Transfer Mode'], 2)
         starttime = time.time()
@@ -151,7 +149,7 @@ class MX_Robot:
         
         print("Disounting Sample..")
         self.dismount_move(position)
-        epics.caput('UR5:CurrentSample', '0,0')
+        epics.caput('UR5:CurrentSample', 'None,0')
 
     def dismount_move(self, pin_to_dismount):
         speed = 2

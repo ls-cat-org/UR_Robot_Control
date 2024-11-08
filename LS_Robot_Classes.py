@@ -4,7 +4,7 @@ import rtde_control, rtde_receive
 from rtde_io import RTDEIOInterface as RTDEIO
 import pygame
 import Var_LSCAT
-from robotiq_gripper_control import RobotiqGripper
+from Robotiq_Gripper.robotiq_gripper_control import RobotiqGripper
 
 class Robot_Control:
     def __init__(self, Robot_IP):
@@ -192,315 +192,312 @@ class Robot_Control:
         else:
             print("Hell noo that ain't right!")
 
+# class Joystick_Robot_Controller:
+#     def __init__(self, Robot_IP):
+#         pygame.init()
 
+#         self.IP = Robot_IP
+#         self.robot = Robot_Control(self.IP)
 
+#         self.joysticks = [pygame.joystick.Joystick(i) for i in range(pygame.joystick.get_count())]
+#         pygame.display.set_caption('UR3e Gamepad Control')
 
-class Joystick_Robot_Controller:
-    def __init__(self, Robot_IP):
-        pygame.init()
+#         self.motion = [0, 0]
+#         self.speed_vector = [0] * 6
 
-        self.IP = Robot_IP
-        self.robot = Robot_Control(self.IP)
+#         screen = pygame.display.set_mode((500, 500), 0, 32)
+#         screen.fill((0, 0, 0))
 
-        self.joysticks = [pygame.joystick.Joystick(i) for i in range(pygame.joystick.get_count())]
-        pygame.display.set_caption('UR3e Gamepad Control')
+#     def handle_axis_motion(self, event, speed, accel):
+#         if event.axis < 2:
+#             if event.axis == 0:
+#                 self.motion[0] = event.value
+#                 self.speed_vector[0] = -event.value * speed
+
+#             if event.axis == 1:
+#                 self.motion[1] = event.value
+#                 self.speed_vector[1] = event.value * speed
+
+#             if abs(self.speed_vector[event.axis]) < 0.01:
+#                 self.speed_vector[event.axis] = 0
 
-        self.motion = [0, 0]
-        self.speed_vector = [0] * 6
+#             self.robot.Jog_TCP(self.speed_vector, accel)
 
-        screen = pygame.display.set_mode((500, 500), 0, 32)
-        screen.fill((0, 0, 0))
-
-    def handle_axis_motion(self, event, speed, accel):
-        if event.axis < 2:
-            if event.axis == 0:
-                self.motion[0] = event.value
-                self.speed_vector[0] = -event.value * speed
-
-            if event.axis == 1:
-                self.motion[1] = event.value
-                self.speed_vector[1] = event.value * speed
-
-            if abs(self.speed_vector[event.axis]) < 0.01:
-                self.speed_vector[event.axis] = 0
-
-            self.robot.Jog_TCP(self.speed_vector, accel)
-
-        elif 2 <= event.axis <= 3:
-            if event.axis == 2:
-                rot_accel = 25
-                self.speed_vector[5] = -event.value
-
-                if abs(self.speed_vector[5]) < 0.03:
-                    self.speed_vector[5] = 0
-
-                self.robot.Rotate_Jog_TCP(self.speed_vector, rot_accel)
-
-            if event.axis == 3:
-                self.speed_vector[2] = -event.value * speed
-
-                if abs(self.speed_vector[2]) < 0.02:
-                    self.speed_vector[2] = 0
-
-                self.robot.Jog_TCP(self.speed_vector, accel)
-
-        elif event.axis == 5:
-            self.robot.MX_Gripper('on')
-
-        elif event.axis == 4:
-            self.robot.MX_Gripper('off')
-
-
-    def handle_button_press(self, event, speed):
-        if event.button == 0:
-            self.robot.Get_Position()
-            print("A Button Pressed")
-
-        elif event.button == 3:
-            print("Y Button Pressed")
-            self.robot.Move_to_Position(Var_LSCAT.MX_Wait_Pos, speed, speed)
-            print("Robot Moved Home")
-
-        elif event.button == 7:
-            self.handle_quit_event()
-            print("Start Button Pressed")
-
-        elif event.button == 6:
-            self.robot.Activate_Gripper()
-            print("Menu Button Pressed")
-
-
-    def handle_joy_device_events(self, event):
-        if event.type == pygame.JOYDEVICEADDED:
-            self.joysticks = [pygame.joystick.Joystick(i) for i in range(pygame.joystick.get_count())]
-        elif event.type == pygame.JOYDEVICEREMOVED:
-            self.joysticks = [pygame.joystick.Joystick(i) for i in range(pygame.joystick.get_count())]
-
-    def handle_quit_event(self):
-        print("Closing Gamepad Control...")
-        pygame.quit()
-        self.robot.Disconnect()
-        sys.exit()
-
-    def run(self, speed, accel):
-        running = True
-        joysticks = [pygame.joystick.Joystick(i) for i in range(pygame.joystick.get_count())]
-
-        print("Connected")
-
-        while running:
-            for event in pygame.event.get():
-                if event.type == pygame.JOYAXISMOTION:
-                    self.handle_axis_motion(event, speed, accel)
-                elif event.type == pygame.JOYBUTTONDOWN:
-                    self.handle_button_press(event, speed)
-                elif event.type in (pygame.JOYDEVICEADDED, pygame.JOYDEVICEREMOVED):
-                    self.handle_joy_device_events(event)
-                elif event.type == pygame.QUIT:
-                    self.handle_quit_event()
-
-class Joystick_Control_PyQT:
-    def __init__(self, Robot_IP):
-        pygame.init()
-        self.IP = Robot_IP
-        self.robot = Robot_Control(self.IP)
-        self.running = False
-        self.joysticks = [pygame.joystick.Joystick(i) for i in range(pygame.joystick.get_count())]
-        self.motion = [0, 0]
-        self.speed_vector = [0] * 6
-
-    def handle_axis_motion(self, event, speed, accel):
-        if event.axis < 2:
-            if event.axis == 0:
-                self.motion[0] = event.value
-                self.speed_vector[0] = -event.value * speed
-
-            if event.axis == 1:
-                self.motion[1] = event.value
-                self.speed_vector[1] = event.value * speed
-
-            if abs(self.speed_vector[event.axis]) < 0.01:
-                self.speed_vector[event.axis] = 0
-
-            self.robot.Jog_TCP(self.speed_vector, accel)
-
-        elif 2 <= event.axis <= 3:
-            if event.axis == 2:
-                rot_accel = 20
-                self.speed_vector[5] = -event.value
-                if abs(self.speed_vector[5]) < 0.03:
-                    self.speed_vector[5] = 0
-                self.robot.Rotate_Jog_TCP(self.speed_vector, rot_accel)
-
-            if event.axis == 3:
-                self.speed_vector[2] = -event.value * speed
-                if abs(self.speed_vector[2]) < 0.02:
-                    self.speed_vector[2] = 0
-                self.robot.Jog_TCP(self.speed_vector, accel)
-
-        elif event.axis == 5:
-            self.robot.MX_Gripper('on')
-
-        elif event.axis == 4:
-            self.robot.MX_Gripper('off')
-
-    def handle_button_press(self, event, speed):
-        if event.button == 0:
-            self.robot.Get_Position()
-            print("A Button Pressed.")
-
-        elif event.button == 3:
-            print("Y Button Pressed.")
-            self.robot.Move_to_Position(Var_LSCAT.MX_Wait_Pos, speed, speed)
-            time.sleep(2)
-            print("Robot Moved Home.")
-
-        elif event.button == 7:
-            print("Start Button Pressed.")
-            self.handle_quit_event()
-
-        elif event.button == 6:
-            self.robot.Activate_Gripper()
-            print("Menu Button Pressed.")
-
-    def handle_joy_device_events(self, event):
-        if event.type == pygame.JOYDEVICEADDED:
-            self.joysticks = [pygame.joystick.Joystick(i) for i in range(pygame.joystick.get_count())]
-
-        elif event.type == pygame.JOYDEVICEREMOVED:
-            self.joysticks = [pygame.joystick.Joystick(i) for i in range(pygame.joystick.get_count())]
-
-    def handle_quit_event(self):
-        print("Stopping Gamepad Control...")
-        self.stop()
-
-    def run(self, speed, accel):
-        self.running = True
-        pygame.event.clear() #Clear stored states, this is important!
-        joysticks = [pygame.joystick.Joystick(i) for i in range(pygame.joystick.get_count())]
-        time.sleep(2)
-        print("Controller connected.")
-
-        while self.running:
-            for event in pygame.event.get():
-                if event.type == pygame.JOYAXISMOTION:
-                    self.handle_axis_motion(event, speed, accel)
-
-                elif event.type == pygame.JOYBUTTONDOWN:
-                    self.handle_button_press(event, speed)
-
-                elif event.type in (pygame.JOYDEVICEADDED, pygame.JOYDEVICEREMOVED):
-                    self.handle_joy_device_events(event)
-
-                elif event.type == pygame.QUIT:
-                    self.handle_quit_event()
-                    self.running = False
-
-    def stop(self):
-        self.running = False
-        self.robot.Disconnect()
-        time.sleep(2)
-        print("Controller disconnected.")
-
-class Joystick_Control_GRIPTEST:
-    def __init__(self, Robot_IP):
-        pygame.init()
-        self.IP = Robot_IP
-        self.robot = Robot_Control(self.IP)
-        self.running = False
-        self.joysticks = [pygame.joystick.Joystick(i) for i in range(pygame.joystick.get_count())]
-        self.motion = [0, 0]
-        self.speed_vector = [0] * 6
-
-    def handle_axis_motion(self, event, speed, accel):
-        if event.axis < 2:
-            if event.axis == 0:
-                self.motion[0] = event.value
-                self.speed_vector[0] = -event.value * speed
-
-            if event.axis == 1:
-                self.motion[1] = event.value
-                self.speed_vector[1] = event.value * speed
-
-            if abs(self.speed_vector[event.axis]) < 0.01:
-                self.speed_vector[event.axis] = 0
-
-            self.robot.Jog_TCP(self.speed_vector, accel)
-
-        elif 2 <= event.axis <= 3:
-            if event.axis == 2:
-                rot_accel = 25
-                self.speed_vector[5] = -event.value
-                if abs(self.speed_vector[5]) < 0.03:
-                    self.speed_vector[5] = 0
-                self.robot.Rotate_Jog_TCP(self.speed_vector, rot_accel)
-
-            if event.axis == 3:
-                self.speed_vector[2] = -event.value * speed
-                if abs(self.speed_vector[2]) < 0.02:
-                    self.speed_vector[2] = 0
-                self.robot.Jog_TCP(self.speed_vector, accel)
-
-        elif event.axis == 5:
-            self.robot.MXGripper('on')
-
-        elif event.axis == 4:
-            self.robot.MXGripper('off')
-
-    def handle_button_press(self, event, speed):
-        if event.button == 0:
-            self.TCP, self.JOINT = self.robot.Get_Position()
-            print("A Button Pressed.")
-
-        elif event.button == 3:
-            print("Y Button Pressed.")
-            self.robot.Move_to_Position(Var_LSCAT.MX_Wait_Pos, speed, speed)
-            time.sleep(2)
-            print("Robot Moved Home.")
-
-        elif event.button == 7:
-            print("Start Button Pressed.")
-            self.handle_quit_event()
-
-        elif event.button == 6:
-            self.robot.Activate_Gripper()
-            print("Menu Button Pressed.")
-
-    def handle_joy_device_events(self, event):
-        if event.type == pygame.JOYDEVICEADDED:
-            self.joysticks = [pygame.joystick.Joystick(i) for i in range(pygame.joystick.get_count())]
-
-        elif event.type == pygame.JOYDEVICEREMOVED:
-            self.joysticks = [pygame.joystick.Joystick(i) for i in range(pygame.joystick.get_count())]
-
-    def handle_quit_event(self):
-        print("Stopping Gamepad Control...")
-        self.stop()
-
-    def run(self, speed, accel):
-        self.running = True
-        pygame.event.clear() #Clear stored states, this is important!
-        joysticks = [pygame.joystick.Joystick(i) for i in range(pygame.joystick.get_count())]
-        time.sleep(2)
-        print("Controller connected.")
-
-        while self.running:
-            for event in pygame.event.get():
-                if event.type == pygame.JOYAXISMOTION:
-                    self.handle_axis_motion(event, speed, accel)
-
-                elif event.type == pygame.JOYBUTTONDOWN:
-                    self.handle_button_press(event, speed)
-
-                elif event.type in (pygame.JOYDEVICEADDED, pygame.JOYDEVICEREMOVED):
-                    self.handle_joy_device_events(event)
-
-                elif event.type == pygame.QUIT:
-                    self.handle_quit_event()
-                    self.running = False
-
-    def stop(self):
-        self.running = False
-        self.robot.Disconnect()
-        time.sleep(2)
-        print("Controller disconnected.")
+#         elif 2 <= event.axis <= 3:
+#             if event.axis == 2:
+#                 rot_accel = 25
+#                 self.speed_vector[5] = -event.value
+
+#                 if abs(self.speed_vector[5]) < 0.03:
+#                     self.speed_vector[5] = 0
+
+#                 self.robot.Rotate_Jog_TCP(self.speed_vector, rot_accel)
+
+#             if event.axis == 3:
+#                 self.speed_vector[2] = -event.value * speed
+
+#                 if abs(self.speed_vector[2]) < 0.02:
+#                     self.speed_vector[2] = 0
+
+#                 self.robot.Jog_TCP(self.speed_vector, accel)
+
+#         elif event.axis == 5:
+#             self.robot.MX_Gripper('on')
+
+#         elif event.axis == 4:
+#             self.robot.MX_Gripper('off')
+
+
+#     def handle_button_press(self, event, speed):
+#         if event.button == 0:
+#             self.robot.Get_Position()
+#             print("A Button Pressed")
+
+#         elif event.button == 3:
+#             print("Y Button Pressed")
+#             self.robot.Move_to_Position(Var_LSCAT.MX_Wait_Pos, speed, speed)
+#             print("Robot Moved Home")
+
+#         elif event.button == 7:
+#             self.handle_quit_event()
+#             print("Start Button Pressed")
+
+#         elif event.button == 6:
+#             self.robot.Activate_Gripper()
+#             print("Menu Button Pressed")
+
+
+#     def handle_joy_device_events(self, event):
+#         if event.type == pygame.JOYDEVICEADDED:
+#             self.joysticks = [pygame.joystick.Joystick(i) for i in range(pygame.joystick.get_count())]
+#         elif event.type == pygame.JOYDEVICEREMOVED:
+#             self.joysticks = [pygame.joystick.Joystick(i) for i in range(pygame.joystick.get_count())]
+
+#     def handle_quit_event(self):
+#         print("Closing Gamepad Control...")
+#         pygame.quit()
+#         self.robot.Disconnect()
+#         sys.exit()
+
+#     def run(self, speed, accel):
+#         running = True
+#         joysticks = [pygame.joystick.Joystick(i) for i in range(pygame.joystick.get_count())]
+
+#         print("Connected")
+
+#         while running:
+#             for event in pygame.event.get():
+#                 if event.type == pygame.JOYAXISMOTION:
+#                     self.handle_axis_motion(event, speed, accel)
+#                 elif event.type == pygame.JOYBUTTONDOWN:
+#                     self.handle_button_press(event, speed)
+#                 elif event.type in (pygame.JOYDEVICEADDED, pygame.JOYDEVICEREMOVED):
+#                     self.handle_joy_device_events(event)
+#                 elif event.type == pygame.QUIT:
+#                     self.handle_quit_event()
+
+# class Joystick_Control_PyQT:
+#     def __init__(self, Robot_IP):
+#         pygame.init()
+#         self.IP = Robot_IP
+#         self.robot = Robot_Control(self.IP)
+#         self.running = False
+#         self.joysticks = [pygame.joystick.Joystick(i) for i in range(pygame.joystick.get_count())]
+#         self.motion = [0, 0]
+#         self.speed_vector = [0] * 6
+
+#     def handle_axis_motion(self, event, speed, accel):
+#         if event.axis < 2:
+#             if event.axis == 0:
+#                 self.motion[0] = event.value
+#                 self.speed_vector[0] = -event.value * speed
+
+#             if event.axis == 1:
+#                 self.motion[1] = event.value
+#                 self.speed_vector[1] = event.value * speed
+
+#             if abs(self.speed_vector[event.axis]) < 0.01:
+#                 self.speed_vector[event.axis] = 0
+
+#             self.robot.Jog_TCP(self.speed_vector, accel)
+
+#         elif 2 <= event.axis <= 3:
+#             if event.axis == 2:
+#                 rot_accel = 20
+#                 self.speed_vector[5] = -event.value
+#                 if abs(self.speed_vector[5]) < 0.03:
+#                     self.speed_vector[5] = 0
+#                 self.robot.Rotate_Jog_TCP(self.speed_vector, rot_accel)
+
+#             if event.axis == 3:
+#                 self.speed_vector[2] = -event.value * speed
+#                 if abs(self.speed_vector[2]) < 0.02:
+#                     self.speed_vector[2] = 0
+#                 self.robot.Jog_TCP(self.speed_vector, accel)
+
+#         elif event.axis == 5:
+#             self.robot.MX_Gripper('on')
+
+#         elif event.axis == 4:
+#             self.robot.MX_Gripper('off')
+
+#     def handle_button_press(self, event, speed):
+#         if event.button == 0:
+#             self.robot.Get_Position()
+#             print("A Button Pressed.")
+
+#         elif event.button == 3:
+#             print("Y Button Pressed.")
+#             self.robot.Move_to_Position(Var_LSCAT.MX_Wait_Pos, speed, speed)
+#             time.sleep(2)
+#             print("Robot Moved Home.")
+
+#         elif event.button == 7:
+#             print("Start Button Pressed.")
+#             self.handle_quit_event()
+
+#         elif event.button == 6:
+#             self.robot.Activate_Gripper()
+#             print("Menu Button Pressed.")
+
+#     def handle_joy_device_events(self, event):
+#         if event.type == pygame.JOYDEVICEADDED:
+#             self.joysticks = [pygame.joystick.Joystick(i) for i in range(pygame.joystick.get_count())]
+
+#         elif event.type == pygame.JOYDEVICEREMOVED:
+#             self.joysticks = [pygame.joystick.Joystick(i) for i in range(pygame.joystick.get_count())]
+
+#     def handle_quit_event(self):
+#         print("Stopping Gamepad Control...")
+#         self.stop()
+
+#     def run(self, speed, accel):
+#         self.running = True
+#         pygame.event.clear() #Clear stored states, this is important!
+#         joysticks = [pygame.joystick.Joystick(i) for i in range(pygame.joystick.get_count())]
+#         time.sleep(2)
+#         print("Controller connected.")
+
+#         while self.running:
+#             for event in pygame.event.get():
+#                 if event.type == pygame.JOYAXISMOTION:
+#                     self.handle_axis_motion(event, speed, accel)
+
+#                 elif event.type == pygame.JOYBUTTONDOWN:
+#                     self.handle_button_press(event, speed)
+
+#                 elif event.type in (pygame.JOYDEVICEADDED, pygame.JOYDEVICEREMOVED):
+#                     self.handle_joy_device_events(event)
+
+#                 elif event.type == pygame.QUIT:
+#                     self.handle_quit_event()
+#                     self.running = False
+
+#     def stop(self):
+#         self.running = False
+#         self.robot.Disconnect()
+#         time.sleep(2)
+#         print("Controller disconnected.")
+
+# # class Joystick_Control_GRIPTEST:
+# #     def __init__(self, Robot_IP):
+# #         pygame.init()
+# #         self.IP = Robot_IP
+# #         self.robot = Robot_Control(self.IP)
+# #         self.running = False
+# #         self.joysticks = [pygame.joystick.Joystick(i) for i in range(pygame.joystick.get_count())]
+# #         self.motion = [0, 0]
+# #         self.speed_vector = [0] * 6
+
+# #     def handle_axis_motion(self, event, speed, accel):
+# #         if event.axis < 2:
+# #             if event.axis == 0:
+# #                 self.motion[0] = event.value
+# #                 self.speed_vector[0] = -event.value * speed
+
+# #             if event.axis == 1:
+# #                 self.motion[1] = event.value
+# #                 self.speed_vector[1] = event.value * speed
+
+# #             if abs(self.speed_vector[event.axis]) < 0.01:
+# #                 self.speed_vector[event.axis] = 0
+
+# #             self.robot.Jog_TCP(self.speed_vector, accel)
+
+# #         elif 2 <= event.axis <= 3:
+# #             if event.axis == 2:
+# #                 rot_accel = 25
+# #                 self.speed_vector[5] = -event.value
+# #                 if abs(self.speed_vector[5]) < 0.03:
+# #                     self.speed_vector[5] = 0
+# #                 self.robot.Rotate_Jog_TCP(self.speed_vector, rot_accel)
+
+# #             if event.axis == 3:
+# #                 self.speed_vector[2] = -event.value * speed
+# #                 if abs(self.speed_vector[2]) < 0.02:
+# #                     self.speed_vector[2] = 0
+# #                 self.robot.Jog_TCP(self.speed_vector, accel)
+
+# #         elif event.axis == 5:
+# #             self.robot.MXGripper('on')
+
+# #         elif event.axis == 4:
+# #             self.robot.MXGripper('off')
+
+# #     def handle_button_press(self, event, speed):
+# #         if event.button == 0:
+# #             self.TCP, self.JOINT = self.robot.Get_Position()
+# #             print("A Button Pressed.")
+
+# #         elif event.button == 3:
+# #             print("Y Button Pressed.")
+# #             self.robot.Move_to_Position(Var_LSCAT.MX_Wait_Pos, speed, speed)
+# #             time.sleep(2)
+# #             print("Robot Moved Home.")
+
+# #         elif event.button == 7:
+# #             print("Start Button Pressed.")
+# #             self.handle_quit_event()
+
+# #         elif event.button == 6:
+# #             self.robot.Activate_Gripper()
+# #             print("Menu Button Pressed.")
+
+# #     def handle_joy_device_events(self, event):
+# #         if event.type == pygame.JOYDEVICEADDED:
+# #             self.joysticks = [pygame.joystick.Joystick(i) for i in range(pygame.joystick.get_count())]
+
+# #         elif event.type == pygame.JOYDEVICEREMOVED:
+# #             self.joysticks = [pygame.joystick.Joystick(i) for i in range(pygame.joystick.get_count())]
+
+# #     def handle_quit_event(self):
+# #         print("Stopping Gamepad Control...")
+# #         self.stop()
+
+# #     def run(self, speed, accel):
+# #         self.running = True
+# #         pygame.event.clear() #Clear stored states, this is important!
+# #         joysticks = [pygame.joystick.Joystick(i) for i in range(pygame.joystick.get_count())]
+# #         time.sleep(2)
+# #         print("Controller connected.")
+
+# #         while self.running:
+# #             for event in pygame.event.get():
+# #                 if event.type == pygame.JOYAXISMOTION:
+# #                     self.handle_axis_motion(event, speed, accel)
+
+# #                 elif event.type == pygame.JOYBUTTONDOWN:
+# #                     self.handle_button_press(event, speed)
+
+# #                 elif event.type in (pygame.JOYDEVICEADDED, pygame.JOYDEVICEREMOVED):
+# #                     self.handle_joy_device_events(event)
+
+# #                 elif event.type == pygame.QUIT:
+# #                     self.handle_quit_event()
+# #                     self.running = False
+
+# #     def stop(self):
+# #         self.running = False
+# #         self.robot.Disconnect()
+# #         time.sleep(2)
+# #         print("Controller disconnected.")

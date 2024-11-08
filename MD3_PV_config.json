@@ -13,5 +13,9 @@
     "Position Safety Check": "MD3:CheckPositionSafety",
     "Use Sample Changer": "MD3:UseSampleChanger",
     "Current Sample": "UR5:CurrentSample",
-    "Sample To Mount": "UR5:SampleToMount"
+    "Sample To Mount": "UR5:SampleToMount",
+    "Mount Sample": "UR5:MountSample",
+    "Dismount Sample": "UR5:DismountSample",
+    "Exchange Sample": "UR5:ExchangeSample",
+    "Go Home": "UR5:GoHome"
 }
