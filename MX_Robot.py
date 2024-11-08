@@ -1,5 +1,5 @@
 import sys, copy, time, json, epics
-import Var_LSCAT
+import DataFIles.Var_LSCAT as Var_LSCAT
 from LS_Robot_Classes import Robot_Control
 
 class MX_Robot:

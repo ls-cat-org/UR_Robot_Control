@@ -1,11 +1,6 @@
-import sys
-import math, statistics
-import Var_LSCAT
-import json
-import rtde_control, rtde_receive
-from Puck_Data import PuckData
+import sys, math, statistics, json, rtde_receive
+import DataFIles.Var_LSCAT as Var_LSCAT
 from dataclasses import dataclass
-from LS_Robot_Classes import Robot_Control
 from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QTextEdit, QPushButton
 
 
@@ -13,12 +8,9 @@ def find_circle_center(p1, p2, p3):
     x1, y1 = p1
     x2, y2 = p2
     x3, y3 = p3
-
     D = 2 * (x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2))
-
     Ux = ((x1 ** 2 + y1 ** 2) * (y2 - y3) + (x2 ** 2 + y2 ** 2) * (y3 - y1) + (x3 ** 2 + y3 ** 2) * (y1 - y2)) / D
     Uy = ((x1 ** 2 + y1 ** 2) * (x3 - x2) + (x2 ** 2 + y2 ** 2) * (x1 - x3) + (x3 ** 2 + y3 ** 2) * (x2 - x1)) / D
-
 
     angle = math.atan2(y1 - Uy, x1 - Ux)
     angle_degrees = math.degrees(angle)
@@ -196,11 +188,6 @@ class CircleCenterApp(QMainWindow):
                 Pin_Positions.append(new_values)
 
             self.point_text_edit.setPlainText("\n".join(points))
-            # puck = PuckData()
-            # puck.Name = self.Puck_Name
-            # puck.angle = self.angle_degrees
-            # puck.center = [self.circle_center[0], self.circle_center[1], self.z_avg, 2.236, 2.2, 0.0]
-            # puck.pin = Pin_Positions
             
             def custom_serialize(data):
                 def process_dict(d, indent_level=0):
@@ -240,18 +227,11 @@ class CircleCenterApp(QMainWindow):
                 old_data = json_file.readlines()
                 old_data[-1] = old_data[-1][:-1]
                 
-
             with open("Puck_Data.json", "w") as json_file:
                 json_file.writelines(old_data)
 
             with open("Puck_Data.json", "a") as json_file:
                 json_file.write(formatted_data)
-
-            
-            # with open("Puck_Data.json", "a") as json_file:
-            #     #json.dump(data, json_file, indent=4)
-            #     json_file.write(formatted_data)
-
 
 
 if __name__ == "__main__":

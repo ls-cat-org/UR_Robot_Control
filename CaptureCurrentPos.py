@@ -1,9 +1,9 @@
-import sys
+import sys, os, rtde_receive
 from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QLabel, QPushButton, QLineEdit
 from PyQt6.QtCore import Qt
-#import rtde_control
-import rtde_receive
-from Var_LSCAT import RoIp
+
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+from DataFIles.Var_LSCAT import RoIp
 
 ROBOT_IP = RoIp
 
