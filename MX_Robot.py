@@ -1,33 +1,33 @@
 import sys, copy, time, json, epics, os
 os.environ['EPICS_CA_ADDR_LIST'] = '164.54.61.137'
-import DataFIles.Var_LSCAT as Var_LSCAT
+import DataFiles.Var_LSCAT as Var_LSCAT
 from LS_Robot_Classes import Robot_Control
+
+def load_pvs(self):
+    filename = os.path.join("DataFiles", "PV_config.json")
+    with open(filename, 'r') as file:
+        pvs = json.load(file)
+    return {name: epics.PV(address) for name, address in pvs.item()}
 
 class MX_Robot:
     def __init__(self):      
         super().__init__()  
         self.robot = Robot_Control(Var_LSCAT.RoIp)
-        self.pvs = {}
-
+        self.pvs = load_pvs()
 
         file_path = os.path.join("DataFiles", "Puck_Data.json")
         with open(file_path, "r") as file:
             self.puck_data = json.load(file)
 
-    def load_pvs(self):
-        filename = os.path.join("DataFiles", "MD3_PV_config.json")
-        with open(filename, 'r') as file:
-            self.pvs = json.load(filename)
-
     def get_coords(self, pv_name):
         # Read the specified PV
         print("Getting XYZ Coordinates")
-        pv = pv_name
+        pv = self.pvs.get(pv_name)
         print(pv)
-        max_retries = 5
+        max_retries = 3
 
         for attempt in range(max_retries):
-            selected_pin = epics.caget(pv)
+            selected_pin = pv.get()
             
             if selected_pin is not None:
                 break  # Exit the loop if we got a value
@@ -38,6 +38,7 @@ class MX_Robot:
             print(f"Error: PV {pv_name} returned None after {max_retries} attempts.")
             return None 
         # Try to parse the puck and pin information from the PV value
+
         try:
             puck, pin_str = selected_pin.split(",")
             pin = int(pin_str)  # Convert pin number to integer
@@ -64,9 +65,11 @@ class MX_Robot:
             # If we reach here, it means no matching puck or pin was found
             print(f"Position data not found for puck {puck}, pin {pin}.")
             return None  # Return None if position not found
+        
         except FileNotFoundError:
             print("Error: Position data JSON file not found.")
             return None
+        
         except json.JSONDecodeError:
             print("Error: Failed to decode the position data JSON file.")
             return None
@@ -89,8 +92,9 @@ class MX_Robot:
     def mount_pin(self):
 
         print("Checking Pin Mount Status..")
+        sample_loaded_pv = self.pvs.get('Sample Mounted')
 
-        if epics.caget('MD3:SampleIsLoaded') == 1:
+        if sample_loaded_pv.get() == 1:
             print("ERROR: Sample is already mounted")
             return
 
@@ -98,16 +102,17 @@ class MX_Robot:
         print("Mounting Sample..")
 
         time.sleep(1)
-        position = self.get_coords('UR5:SampleToMount')
+        position = self.get_coords('Sample To Mount')
         
         #print(f"Mounting sample from {selected_pin} from position {position}")
 
-        epics.caput('MD3:CurrentPhase', 3)
+        #epics.caput('MD3:CurrentPhase', 3)
+        self.pvs['Set Phase (Mount Mode)'].put(3)
         time.sleep(3)
         starttime = time.time()
 
         while time.time() - starttime < 10:
-            if epics.caget("MD3:State") == 4:
+            if self.pvs('MD3 State').get() == 4:
                 print("MD3 in correct position, mounting sample.")
                 break
             time.sleep(1)
@@ -118,10 +123,10 @@ class MX_Robot:
             return
             
         self.mount_move(position)
-        set_pin = epics.caget('UR5:SampleToMount')
-        print(set_pin)
+        set_pin = self.pvs['Sample To Mount'].get()
+        print(f"Sample to set: {set_pin}")
         time.sleep(2)
-        epics.caput('UR5:CurrentSample', set_pin)
+        self.pvs['Current Sample'].put(set_pin)
         print(f'Sample Mounted.  UR5:CurrentSample updated.')
 
     def mount_move(self, pin_to_mount):
@@ -154,18 +159,18 @@ class MX_Robot:
     def dismount_pin(self):
 
         print("Checking Pin Mount Status..")
-        if epics.caget(self.pvs['Sample Is Mounted']) == 0:
+        if self.pvs["Sample Is Mounted"].get() == 0:
             print("No sample mounted!")
             return
         
-        selected_pin = epics.caget('UR5:CurrentSample')
-        position = self.get_coords('UR5:CurrentSample')
+        selected_pin = self.pvs['Current Sample'].get()
+        position = self.get_coords(selected_pin)
         
-        epics.caput(epics.caput('MD3:CurrentPhase', 3))
+        self.pvs['Current Phase (Mount Mode)'].put(3)
         starttime = time.time()
 
         while time.time() - starttime < 10:
-            if epics.caget("MD3:State") == 4:
+            if self.pvs['MD3 State'].get() == 4:
                 print("MD3 in correct position, dismounting sample.")
                 break
             time.sleep(1)
@@ -176,7 +181,8 @@ class MX_Robot:
         
         print("Disounting Sample..")
         self.dismount_move(position)
-        epics.caput('UR5:CurrentSample', 'None,0')
+        self.pvs['UR5:CurrentSample'].put('None,0')
+        
 
     def dismount_move(self, pin_to_dismount):
         speed = 2

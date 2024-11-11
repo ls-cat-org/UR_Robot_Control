@@ -46,9 +46,6 @@ class UR5RobotIOC(PVGroup):
             self.Robot.go_to_wait()
             print("You Went home ")
         return 0
-    
-
-        
 
 if __name__ == "__main__":
     ioc_options, run_options = ioc_arg_parser(

@@ -3,7 +3,7 @@ from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QLa
 from PyQt6.QtCore import Qt
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from DataFIles.Var_LSCAT import RoIp
+from DataFiles.Var_LSCAT import RoIp
 
 ROBOT_IP = RoIp
 

@@ -3,7 +3,7 @@ import numpy as np
 import rtde_control, rtde_receive
 from rtde_io import RTDEIOInterface as RTDEIO
 import pygame
-import DataFIles.Var_LSCAT as Var_LSCAT
+import DataFiles.Var_LSCAT as Var_LSCAT
 from Robotiq_Gripper.robotiq_gripper_control import RobotiqGripper
 
 class Robot_Control:
