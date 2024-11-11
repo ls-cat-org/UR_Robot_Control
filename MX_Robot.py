@@ -1,4 +1,5 @@
-import sys, copy, time, json, epics
+import sys, copy, time, json, epics, os
+os.environ['EPICS_CA_ADDR_LIST'] = '164.54.61.137'
 import DataFIles.Var_LSCAT as Var_LSCAT
 from LS_Robot_Classes import Robot_Control
 
@@ -8,17 +9,34 @@ class MX_Robot:
         self.robot = Robot_Control(Var_LSCAT.RoIp)
         self.pvs = {}
 
-        with open("Puck_Data.json", "r") as file:
+
+        file_path = os.path.join("DataFiles", "Puck_Data.json")
+        with open(file_path, "r") as file:
             self.puck_data = json.load(file)
 
-    def load_pvs(self, filename='MD3_PV_config.json'):
+    def load_pvs(self):
+        filename = os.path.join("DataFiles", "MD3_PV_config.json")
         with open(filename, 'r') as file:
             self.pvs = json.load(filename)
 
     def get_coords(self, pv_name):
         # Read the specified PV
-        selected_pin = epics.caget(pv_name)
-        
+        print("Getting XYZ Coordinates")
+        pv = pv_name
+        print(pv)
+        max_retries = 5
+
+        for attempt in range(max_retries):
+            selected_pin = epics.caget(pv)
+            
+            if selected_pin is not None:
+                break  # Exit the loop if we got a value
+            else:
+                print(f"Attempt {attempt + 1} of {max_retries}: PV {pv_name} returned None. Retrying...")
+
+        else:
+            print(f"Error: PV {pv_name} returned None after {max_retries} attempts.")
+            return None 
         # Try to parse the puck and pin information from the PV value
         try:
             puck, pin_str = selected_pin.split(",")
@@ -30,7 +48,8 @@ class MX_Robot:
         # Position data retrieval logic directly included
         try:
             # Read the JSON file (or however it's stored)
-            with open('position_data.json', 'r') as f:
+            file_path = os.path.join("DataFiles", "Puck_Data.json")
+            with open(file_path, 'r') as f:
                 position_data = json.load(f)
 
             # Loop through the JSON list to find the matching puck
@@ -71,30 +90,38 @@ class MX_Robot:
 
         print("Checking Pin Mount Status..")
 
-        if epics.caget(self.pvs['Sample Is Mounted']) == 1:
+        if epics.caget('MD3:SampleIsLoaded') == 1:
             print("ERROR: Sample is already mounted")
             return
 
+        print("No Sample Mounted.")
         print("Mounting Sample..")
-        selected_pin = epics.caget('UR5:SampleToMount')
-        position = self.get_coords('UR5:SampleToMount')
-        print(f"Mounting sample from {selected_pin} from position {position}")
 
-        epics.caput(self.pvs['Transfer Mode'], 2)
+        time.sleep(1)
+        position = self.get_coords('UR5:SampleToMount')
+        
+        #print(f"Mounting sample from {selected_pin} from position {position}")
+
+        epics.caput('MD3:CurrentPhase', 3)
+        time.sleep(3)
         starttime = time.time()
 
         while time.time() - starttime < 10:
-            if epics.caget([self.pvs['Use Sample Changer']]):
-                self.log("MD3 in correct position, mounting sample.")
+            if epics.caget("MD3:State") == 4:
+                print("MD3 in correct position, mounting sample.")
                 break
             time.sleep(1)
+            print("Waiting on MD3 to move to safe position.")
 
         else:
-            self.log("TIMEOUT: MD3 response took too long to respond")
+            print("TIMEOUT: MD3 response took too long to respond")
             return
             
         self.mount_move(position)
-        epics.caput('UR5:CurrentSample', selected_pin)
+        set_pin = epics.caget('UR5:SampleToMount')
+        print(set_pin)
+        time.sleep(2)
+        epics.caput('UR5:CurrentSample', set_pin)
         print(f'Sample Mounted.  UR5:CurrentSample updated.')
 
     def mount_move(self, pin_to_mount):
@@ -122,23 +149,23 @@ class MX_Robot:
         self.path_from_MD3()
 
         self.robot.Move_to_Position(pin_offset_pos, speed, speed)
-        self.log("Mount Complete.")
+        print("Mount Complete.")
 
     def dismount_pin(self):
 
         print("Checking Pin Mount Status..")
         if epics.caget(self.pvs['Sample Is Mounted']) == 0:
-            self.log("No sample mounted!")
+            print("No sample mounted!")
             return
         
         selected_pin = epics.caget('UR5:CurrentSample')
         position = self.get_coords('UR5:CurrentSample')
         
-        epics.caput(self.pvs['Transfer Mode'], 2)
+        epics.caput(epics.caput('MD3:CurrentPhase', 3))
         starttime = time.time()
 
         while time.time() - starttime < 10:
-            if epics.caget([self.pvs['Use Sample Changer']]):
+            if epics.caget("MD3:State") == 4:
                 print("MD3 in correct position, dismounting sample.")
                 break
             time.sleep(1)

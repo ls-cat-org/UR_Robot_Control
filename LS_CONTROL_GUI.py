@@ -95,7 +95,7 @@ class PuckSelector(QWidget):
         MX_Robot.go_to_wait()
 
 def main():
-    file_path = os.path.join("..", "DataFiles", "Puck_Data.json")
+    file_path = os.path.join("DataFiles", "Puck_Data.json")
     with open(file_path, "r") as file:
         data = json.load(file)
 

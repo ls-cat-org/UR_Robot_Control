@@ -1,6 +1,6 @@
 from caproto.server import pvproperty, PVGroup, ioc_arg_parser, run, PvpropertyString
 from caproto import ChannelType
-import MX_Robot as Robot
+from MX_Robot import MX_Robot
 
 # Assuming your UR5Robot class now takes puck and sample arguments for mount and exchange
 # from ur5_robot import UR5Robot
@@ -15,32 +15,36 @@ class UR5RobotIOC(PVGroup):
     ExchangeSample = pvproperty(value=0, dtype=int, doc="Trigger exchange function")
     GoHome = pvproperty(value=0, dtype=int, doc="Send Robot to Home Position")
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Initialize the robot instance here
+        self.Robot = MX_Robot()
 
     @MountSample.putter
     async def MountSample(self, instance, value):
         if value == 1:
-            Robot.mount_pin()
-            print("Hello you mounted")
+            self.Robot.mount_pin()
         return 0  # Reset to 0 after call
 
     @DismountSample.putter
     async def DismountSample(self, instance, value):
         if value == 1:
-            Robot.dismount_pin()
+            self.Robot.dismount_pin()
             print("Hello you dismounted")
         return 0
 
     @ExchangeSample.putter
     async def ExchangeSample(self, instance, value):
         if value == 1:
-            Robot.exchange_pin()
+            self.Robot.exchange_pin()
             print("You Exchanged Samples")
         return 0
     
     @GoHome.putter
-    async def ExchangeSample(self, instance, value):
+    async def GoHome(self, instance, value):
         if value == 1:
-            print("You Exchanged Samples")
+            self.Robot.go_to_wait()
+            print("You Went home ")
         return 0
     
 

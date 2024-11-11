@@ -1,5 +1,6 @@
-import rtde_control
-from robotiq_preamble import ROBOTIQ_PREAMBLE
+import rtde_control, sys, os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+from Robotiq_Gripper.robotiq_preamble import ROBOTIQ_PREAMBLE
 import time
 
 
