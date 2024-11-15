@@ -1,5 +1,5 @@
 import sys, math, statistics, json, rtde_receive
-import DataFIles.Var_LSCAT as Var_LSCAT
+import DataFiles.Var_LSCAT as Var_LSCAT
 from dataclasses import dataclass
 from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QTextEdit, QPushButton
 

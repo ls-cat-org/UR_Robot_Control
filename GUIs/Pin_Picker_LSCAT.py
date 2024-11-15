@@ -1,6 +1,6 @@
 import sys, copy, time, json, epics, os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-import DataFIles.Var_LSCAT as Var_LSCAT
+import DataFiles.Var_LSCAT as Var_LSCAT
 from LS_Robot_Classes import Robot_Control
 from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QComboBox, QPushButton, QTextEdit
 
@@ -218,7 +218,7 @@ class PuckSelector(QWidget):
 
 
 def main():
-    file_path = os.path.join("..", "DataFiles", "Puck_Data.json")
+    file_path = os.path.abspath(os.path.join("DataFiles", "Puck_Data.json"))
     with open(file_path, "r") as file:
         data = json.load(file)
 

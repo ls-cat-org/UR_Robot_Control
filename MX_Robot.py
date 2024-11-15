@@ -3,11 +3,11 @@ os.environ['EPICS_CA_ADDR_LIST'] = '164.54.61.137'
 import DataFiles.Var_LSCAT as Var_LSCAT
 from LS_Robot_Classes import Robot_Control
 
-def load_pvs(self):
+def load_pvs():
     filename = os.path.join("DataFiles", "PV_config.json")
     with open(filename, 'r') as file:
         pvs = json.load(file)
-    return {name: epics.PV(address) for name, address in pvs.item()}
+    return {name: epics.PV(address) for name, address in pvs.items()}
 
 class MX_Robot:
     def __init__(self):      
@@ -75,17 +75,16 @@ class MX_Robot:
             return None
 
     def path_to_MD3(self):
-        mount_offset = copy.deepcopy(Var_LSCAT.MX_Pin_Sample_Position)
-        mount_offset[2] = 0.5
+        #mount_offset = copy.deepcopy(Var_LSCAT.MX_Pin_Sample_Position)
+        #mount_offset[2] = 0.5
         speed = 2
         self.robot.Move_to_Position(Var_LSCAT.Path_Near_Dewer, speed, 0.5)
-        self.robot.Move_to_Position(mount_offset, speed, 0.5)
+        self.robot.Move_to_Position(Var_LSCAT.Wait_for_Cryo, speed, 0.5)
 
     def path_from_MD3(self):
-        mount_offset = copy.deepcopy(Var_LSCAT.MX_Pin_Sample_Position)
-        mount_offset[2] = 0.5
+
         speed = 0.1
-        self.robot.Move_to_Position(mount_offset, speed, speed)
+        self.robot.Move_to_Position(Var_LSCAT.MD3_Approach, speed, speed)
         speed = 2
         self.robot.Move_to_Position(Var_LSCAT.Path_Near_Dewer, speed, speed)
 
@@ -93,6 +92,7 @@ class MX_Robot:
 
         print("Checking Pin Mount Status..")
         sample_loaded_pv = self.pvs.get('Sample Mounted')
+        print(sample_loaded_pv)
 
         if sample_loaded_pv.get() == 1:
             print("ERROR: Sample is already mounted")
@@ -110,9 +110,10 @@ class MX_Robot:
         self.pvs['Set Phase (Mount Mode)'].put(3)
         time.sleep(3)
         starttime = time.time()
+        MD3_state = self.pvs.get('MD3 State')
 
         while time.time() - starttime < 10:
-            if self.pvs('MD3 State').get() == 4:
+            if MD3_state.get() == 4:
                 print("MD3 in correct position, mounting sample.")
                 break
             time.sleep(1)
@@ -135,26 +136,74 @@ class MX_Robot:
         #Copy new position for height offset as needed
         pin_offset_pos = copy.deepcopy(pin_to_mount)
         pin_offset_pos[2] = 0.25
+
+        try:
+            self.robot.MXGripper('off')
+            self.robot.Move_to_Position(pin_offset_pos, speed, speed)
+            self.robot.Move_to_Position(pin_to_mount, speed, speed)
+            time.sleep(0.5)
+            self.robot.MXGripper('on')
+            time.sleep(0.5)
+            self.robot.Move_to_Position(pin_offset_pos,speed, speed)
+            #self.path_to_MD3()
+            speed = 2
+            self.robot.Move_to_Position(Var_LSCAT.Wait_Pos,speed, speed)
+            self.robot.Move_to_Position(Var_LSCAT.Path_Near_Dewer, speed, 0.5)
+            self.robot.Move_to_Position(Var_LSCAT.Wait_for_Cryo, speed, 0.5)
+            speed = 0.75
+
+        except Exception as e:
+            print(f"Idk man the vibes were off.. {e}")
+            return
+
+        starttime = time.time()
+        Cryo_Status = self.pvs.get('Cryo Status')
+        Cryo_Status.put(1)
+
+        try:
+            while time.time() - starttime < 2:
+                if Cryo_Status.get() == 1:
+                    print("CRYO in correct position, mounting sample.")
+
+                    self.robot.Move_to_Position(Var_LSCAT.MD3_Approach, speed, speed)
+                    speed = 0.05
+                    self.robot.Move_to_Position(Var_LSCAT.MD3_Sample_Position, speed, speed)
+                    time.sleep(0.5)
+                    self.robot.MXGripper('off')
+                    time.sleep(0.5)
+
+                    speed = 0.1
+                    self.robot.Move_to_Position(Var_LSCAT.MD3_Approach, speed, speed)
+                    self.robot.Move_to_Position(Var_LSCAT.Wait_for_Cryo, speed, speed)
+                    Cryo_Status.put(0)
+
+                    speed = 2
+                    self.robot.Move_to_Position(Var_LSCAT.Path_Near_Dewer, speed, speed)
+                    self.robot.Move_to_Position(pin_offset_pos, speed, speed)
+                    print("Mount Complete.")
+                    break
+
+                time.sleep(0.5)
+                print("Waiting on Cryo to safe position.")
+
+            else:
+                print("TIMEOUT: CRYO response took too long, putting sample back")
+                self.robot.Move_to_Position(Var_LSCAT.Wait_for_Cryo, speed, speed)
+                self.robot.Move_to_Position(Var_LSCAT.Path_Near_Dewer, speed, speed)
+                self.robot.Move_to_Position(pin_offset_pos, speed, speed)
+                self.robot.Move_to_Position(self.pin_to_dismount, speed, speed)
+                time.sleep(0.5)
+                self.robot.MXGripper('off')
+                time.sleep(0.5)
+                self.robot.Move_to_Position(pin_offset_pos, speed, speed)
+                return
         
-        self.robot.MXGripper('off')
-        self.robot.Move_to_Position(pin_offset_pos, speed, speed)
-        self.robot.Move_to_Position(pin_to_mount, speed, speed)
-        time.sleep(0.5)
-        self.robot.MXGripper('on')
-        time.sleep(0.5)
-        self.robot.Move_to_Position(pin_offset_pos,speed, speed)
-        self.path_to_MD3()
+        except Exception as e:
+            self.robot.Move_to_Position(Var_LSCAT.Wait_for_Cryo, speed, speed)
+            self.robot.Move_to_Position(Var_LSCAT.Path_Near_Dewer, speed, speed)
+            self.robot.Move_to_Position(pin_offset_pos, speed, speed)
+            print(f"Idk man the vibes were off.. {e}")
 
-        speed = 0.05
-        self.robot.Move_to_Position(Var_LSCAT.MX_Pin_Sample_Position, speed, speed)
-        time.sleep(0.5)
-        self.robot.MXGripper('off')
-        time.sleep(0.5)
-        speed = 2
-        self.path_from_MD3()
-
-        self.robot.Move_to_Position(pin_offset_pos, speed, speed)
-        print("Mount Complete.")
 
     def dismount_pin(self):
 
@@ -189,34 +238,76 @@ class MX_Robot:
 
         #Copy new position for height offset as needed
         pin_offset_pos = copy.deepcopy(pin_to_dismount)
-
-        #Maintain safe height before move
         pin_offset_pos[2] = 0.25
-        self.robot.MXGripper('off')
-        self.path_to_MD3()
 
-        speed = 0.05
-        self.robot.Move_to_Position(Var_LSCAT.MX_Pin_Sample_Position, speed, speed)
-        time.sleep(0.05)
-        self.robot.MXGripper('on')
-        time.sleep(0.5)
-        self.path_from_MD3()
 
-        speed = 0.75
-        self.robot.Move_to_Position(pin_offset_pos, speed, speed)
-        self.robot.Move_to_Position(self.pin_to_dismount, speed, speed)
-        time.sleep(0.5)
-        self.robot.MXGripper('off')
-        time.sleep(0.5)
-        self.robot.Move_to_Position(pin_offset_pos, speed, speed)
+        #Try intital move to MD3 prior to CRYO move
+        try:
+            self.robot.MXGripper('off')
+            speed = 2
+            self.robot.Move_to_Position(Var_LSCAT.Wait_Pos, speed, 0.5)
+            self.robot.Move_to_Position(Var_LSCAT.Path_Near_Dewer, speed, 0.5)
+            self.robot.Move_to_Position(Var_LSCAT.Wait_for_Cryo, speed, 0.5)
 
-        print("Dismount Complete.")
+        except Exception as e:
+            print(f"Initial Movement failed: {e}")
+            return
+        
+        #Set Up CRYO PV and call for retraction
+        Cryo_Status = self.pvs.get('Cryo Status')
+        Cryo_Status.put(1)
+        starttime = time.time()
+
+
+        #Check CRYO Retracted, then mount sample
+        try:
+            while time.time() - starttime < 5:
+                if Cryo_Status.get() == 1:
+
+                    print("CRYO Retracted, continuing dismount...")
+
+
+                    self.robot.Move_to_Position(Var_LSCAT.MD3_Approach, speed, speed)
+                    speed = 0.05
+                    self.robot.Move_to_Position(Var_LSCAT.MD3_Sample_Position, speed, speed)
+                    time.sleep(0.05)
+                    self.robot.MXGripper('on')
+                    time.sleep(0.5)
+                    #self.path_from_MD3()
+
+
+
+                    speed = 0.75
+                    self.robot.Move_to_Position(Var_LSCAT.Path_Near_Dewer, speed, speed)
+                    self.robot.Move_to_Position(Var_LSCAT.Wait_Pos, speed, speed)
+                    self.robot.Move_to_Position(pin_offset_pos, speed, speed)
+                    self.robot.Move_to_Position(self.pin_to_dismount, speed, speed)
+                    time.sleep(0.5)
+                    self.robot.MXGripper('off')
+                    time.sleep(0.5)
+                    self.robot.Move_to_Position(pin_offset_pos, speed, speed)
+                    self.robot.Move_to_Position(Var_LSCAT.Wait_Pos, speed, speed)
+                    print("Dismount Complete.")
+                print("Waiting for CRYO Retract")
+                time.sleep(0.5)
+
+            #If CRYO times out, move to safe position
+            else:
+                print(f"Error occured during dismount process:  {e}")
+                self.robot.Move_to_Position(Var_LSCAT.Path_Near_Dewer, speed, 0.5)
+                self.robot.Move_to_Position(Var_LSCAT.Wait_Pos, speed, 0.5)
+
+        #If dismount fails, move to safe location
+        except Exception as e:
+            print(f"Error occured during dismount process:  {e}")
+            self.robot.Move_to_Position(Var_LSCAT.Path_Near_Dewer, speed, 0.5)
+            self.robot.Move_to_Position(Var_LSCAT.Wait_Pos, speed, 0.5)
+            return
 
     def exchange_pin(self):
-        
         self.dismount_pin()
+        time.sleep(1)
         self.mount_pin()
-        #self.pin_to_dismount = self.selected_pin
 
     def go_to_wait(self):
         self.robot.Move_to_Position(Var_LSCAT.MX_Wait_Pos, 0.5, 0.5)

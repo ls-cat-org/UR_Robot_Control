@@ -1,6 +1,6 @@
+import sys, os 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-import DataFIles.Var_LSCAT as Var_LSCAT
-import sys, os
+import DataFiles.Var_LSCAT as Var_LSCAT
 from LS_Robot_Classes import Robot_Control
 from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QComboBox, QPushButton
 
