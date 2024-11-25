@@ -1,7 +1,6 @@
 import sys, copy, time, json, epics, os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 import DataFiles.Var_LSCAT as Var_LSCAT
-from LS_Robot_Classes import Robot_Control
 from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QComboBox, QPushButton, QTextEdit
 
 class PuckSelector(QWidget):
@@ -51,8 +50,8 @@ class PuckSelector(QWidget):
 
         self.setLayout(layout)
 
-        self.robot = Robot_Control(Var_LSCAT.RoIp)
-        self.pvs = {}
+        self.load_pvs()
+
 
     def log(self, message):
         #Append a message to the log box
@@ -71,149 +70,59 @@ class PuckSelector(QWidget):
                 print(pins)
                 print("Noodles")
 
-    def load_pvs(self, filename='MD3_PV_config.json'):
+    def load_pvs(self):
+        filename = os.path.join("DataFiles", "PV_config.json")
         with open(filename, 'r') as file:
-            self.pvs = json.load(filename)
+            self.pvs = json.load(file)
             self.log("Populated Available PVs")
          
     def select_pin(self):
         self.selected_pin_name = self.pin_combo.currentText()
         if self.selected_pin_name != "Select a Pin":
             self.selected_pin = self.pin_positions.get(self.selected_pin_name, "Error: Something is wrong :(")
-            print(self.selected_pin_name)
-            print(self.selected_pin)
 
-    def path_to_MD3(self):
-        mount_offset = copy.deepcopy(Var_LSCAT.MX_Pin_Sample_Position)
-        mount_offset[2] = 0.5
-        speed = 2
-        self.robot.Move_to_Position(Var_LSCAT.Path_Near_Dewer, speed, 0.5)
-        self.robot.Move_to_Position(mount_offset, speed, 0.5)
 
-    def path_from_MD3(self):
-        mount_offset = copy.deepcopy(Var_LSCAT.MX_Pin_Sample_Position)
-        mount_offset[2] = 0.5
-        speed = 0.1
-        self.robot.Move_to_Position(mount_offset, speed, speed)
-        speed = 2
-        self.robot.Move_to_Position(Var_LSCAT.Path_Near_Dewer, speed, speed)
+            if self.selected_pin != "Error: Something is wrong :(":
+                # Assuming 'self.selected_pin' holds the pin number or some related data
+                # Create the string 'PuckName,PinNumber'
+                selected_puck_name = self.puck_combo.currentText()
+                pin_number = self.selected_pin_name.split('_')[-1] # The pin name is used here as the pin number (adjust as needed)
+                
+                # Combine the puck name and pin number
+                self.puck_pin_string = f"{selected_puck_name},{pin_number}"
+
+                # Here you can upload puck_pin_string to the PV or use it as needed
+                print(f"Selected Puck and Pin for upload: {self.puck_pin_string}")
+
+            else:
+                print("Error: Invalid pin selection.")
+
 
     def mount_pin(self):
+        Sample_to_Mount = self.pvs.get('Sample To Mount')
+        Sample_PV = epics.PV(f'{Sample_to_Mount}')
+        Sample_PV.put(f'{self.puck_pin_string}')
+        Mount_Sample = self.pvs.get('Mount Sample')
+        Mount_PV = epics.PV(f'{Mount_Sample}')
+        Mount_PV.put(1)
 
-        self.log("Checking Pin Mount Status..")
-
-        if epics.caget(self.pvs['Sample Is Mounted']) == 1:
-            self.log("Sample is already mounted")
-            return
-
-        print("Mounting Sample..")
-
-        epics.caput(self.pvs['Transfer Mode'], 2)
-        starttime = time.time
-
-        while time.time() - starttime < 10:
-            if epics.caget([self.pvs['Use Sample Changer']]):
-                self.log("MD3 in correct position, mounting sample.")
-                break
-            time.sleep(1)
-
-        else:
-            self.log("TIMEOUT: MD3 response took too long to respond")
-            return
-            
-        self.mount_move(self.selected_pin)
-        self.pin_to_dismount = self.selected_pin
-
-    def mount_move(self, pin_to_mount):
-        self.log(f"Moving robot to {self.selected_pin_name}")
-        speed = 0.75
-
-        #Copy new position for height offset as needed
-        pin_offset_pos = copy.deepcopy(pin_to_mount)
-        pin_offset_pos[2] = 0.25
-        
-        self.robot.MXGripper('off')
-        self.robot.Move_to_Position(pin_offset_pos, speed, speed)
-        self.robot.Move_to_Position(pin_to_mount, speed, speed)
-        time.sleep(0.5)
-        self.robot.MXGripper('on')
-        time.sleep(0.5)
-        self.robot.Move_to_Position(pin_offset_pos,speed, speed)
-        self.path_to_MD3()
-
-        speed = 0.05
-        self.robot.Move_to_Position(Var_LSCAT.MX_Pin_Sample_Position, speed, speed)
-        time.sleep(0.5)
-        self.robot.MXGripper('off')
-        time.sleep(0.5)
-        speed = 2
-        self.path_from_MD3()
-
-        self.robot.Move_to_Position(pin_offset_pos, speed, speed)
-        self.log("Mount Complete.")
 
     def dismount_pin(self):
-
-        self.log("Checking Pin Mount Status..")
-        if epics.caget(self.pvs['Sample Is Mounted']) == 0:
-            self.log("No sample mounted!")
-            return
-        
-        epics.caput(self.pvs['Transfer Mode'], 2)
-        starttime = time.time
-
-        while time.time() - starttime < 10:
-            if epics.caget([self.pvs['Use Sample Changer']]):
-                self.log("MD3 in correct position, dismounting sample.")
-                break
-            time.sleep(1)
-
-        else:
-            self.log("TIMEOUT: MD3 response took too long to respond")
-            return
-        
-        print("Disounting Sample..")
-        self.dismount_move(self.pin_to_dismount)
-
-    def dismount_move(self, pin_to_dismount):
-        speed = 2
-
-        #Copy new position for height offset as needed
-        pin_offset_pos = copy.deepcopy(pin_to_dismount)
-
-        #Maintain safe height before move
-        pin_offset_pos[2] = 0.25
-        self.robot.MXGripper('off')
-        self.path_to_MD3()
-
-        speed = 0.05
-        self.robot.Move_to_Position(Var_LSCAT.MX_Pin_Sample_Position, speed, speed)
-        time.sleep(0.05)
-        self.robot.MXGripper('on')
-        time.sleep(0.5)
-        self.path_from_MD3()
-
-        speed = 0.75
-        self.robot.Move_to_Position(pin_offset_pos, speed, speed)
-        self.robot.Move_to_Position(self.pin_to_dismount, speed, speed)
-        time.sleep(0.5)
-        self.robot.MXGripper('off')
-        time.sleep(0.5)
-        self.robot.Move_to_Position(pin_offset_pos, speed, speed)
-
-        print("Dismount Complete.")
+        Dismount_Sample = self.pvs.get('Dismount Sample')
+        Dismount_PV = epics.PV(f'{Dismount_Sample}')
+        Dismount_PV.put(1)
 
     def exchange_pin(self):
-
-        self.dismount_move(self.pin_to_dismount)
-        self.mount_move(self.selected_pin)
-        self.pin_to_dismount = self.selected_pin
+        Exchange = self.pvs.get("Exchange Sample")
+        Ex_PV = epics.PV(f'{Exchange}')
+        Ex_PV.put(1)
 
     def go_to_wait(self):
-        self.robot.Move_to_Position(Var_LSCAT.MX_Wait_Pos, 0.5, 0.5)
+        Wait = self.pvs.get('Go Home')
+        Wait_PV = epics.PV(f'{Wait}')
+        Wait_PV.put(1)
 
     def quit(self):
-        self.robot.Disconnect()
         print("Later, Ya'll!1")
 
 

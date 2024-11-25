@@ -158,13 +158,14 @@ class MX_Robot:
 
         starttime = time.time()
         Cryo_Status = self.pvs.get('Cryo Status')
-        Cryo_Status.put(1)
+        self.Cryo_PV = epics.PV(f"{Cryo_Status}")
+        self.Cryo_PV.put(1)
 
         try:
-            while time.time() - starttime < 2:
-                if Cryo_Status.get() == 1:
+            while time.time() - starttime < 4:
+                if self.Cryo_PV.get() == 0:
                     print("CRYO in correct position, mounting sample.")
-
+                    time.sleep(1)
                     self.robot.Move_to_Position(Var_LSCAT.MD3_Approach, speed, speed)
                     speed = 0.05
                     self.robot.Move_to_Position(Var_LSCAT.MD3_Sample_Position, speed, speed)
@@ -175,7 +176,7 @@ class MX_Robot:
                     speed = 0.1
                     self.robot.Move_to_Position(Var_LSCAT.MD3_Approach, speed, speed)
                     self.robot.Move_to_Position(Var_LSCAT.Wait_for_Cryo, speed, speed)
-                    Cryo_Status.put(0)
+                    Cryo_Status.put(1)
 
                     speed = 2
                     self.robot.Move_to_Position(Var_LSCAT.Path_Near_Dewer, speed, speed)
@@ -199,9 +200,7 @@ class MX_Robot:
                 return
         
         except Exception as e:
-            self.robot.Move_to_Position(Var_LSCAT.Wait_for_Cryo, speed, speed)
-            self.robot.Move_to_Position(Var_LSCAT.Path_Near_Dewer, speed, speed)
-            self.robot.Move_to_Position(pin_offset_pos, speed, speed)
+ 
             print(f"Idk man the vibes were off.. {e}")
 
 
@@ -254,15 +253,14 @@ class MX_Robot:
             return
         
         #Set Up CRYO PV and call for retraction
-        Cryo_Status = self.pvs.get('Cryo Status')
-        Cryo_Status.put(1)
+        self.Cryo_PV.put(1)
         starttime = time.time()
 
 
         #Check CRYO Retracted, then mount sample
         try:
             while time.time() - starttime < 5:
-                if Cryo_Status.get() == 1:
+                if self.Cryo_PV.get() == 0:
 
                     print("CRYO Retracted, continuing dismount...")
 
@@ -274,7 +272,6 @@ class MX_Robot:
                     self.robot.MXGripper('on')
                     time.sleep(0.5)
                     #self.path_from_MD3()
-
 
 
                     speed = 0.75
