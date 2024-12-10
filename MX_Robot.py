@@ -3,36 +3,41 @@ os.environ['EPICS_CA_ADDR_LIST'] = '164.54.61.137'
 import DataFiles.Var_LSCAT as Var_LSCAT
 from LS_Robot_Classes import Robot_Control
 
-def load_pvs():
-    filename = os.path.join("DataFiles", "PV_config.json")
-    with open(filename, 'r') as file:
-        pvs = json.load(file)
-    return {name: epics.PV(address) for name, address in pvs.items()}
-
 class MX_Robot:
     def __init__(self):      
-        super().__init__()  
-        self.robot = Robot_Control(Var_LSCAT.RoIp)
-        self.pvs = load_pvs()
+        super().__init__()
 
+        #Initialize Base Robot Class with Robot IP
+        self.robot = Robot_Control(Var_LSCAT.RoIp)
+
+        #Initialize PVs from PV_Config.json
+        self.pvs = self.load_pvs()
+
+        #Load in Puck Data from Puck_Data,json
         file_path = os.path.join("DataFiles", "Puck_Data.json")
         with open(file_path, "r") as file:
             self.puck_data = json.load(file)
 
+
+    #Function to load and parse PV names from .json file
+    def load_pvs(self):
+        filename = os.path.join("DataFiles", "PV_config.json")
+        with open(filename, 'r') as file:
+            pvs = json.load(file)
+        return {name: epics.PV(address) for name, address in pvs.items()}
+    
+
+    #Extracts positional lists from Puck Names and Pin Numbers for sample location
     def get_coords(self, pv_name):
         # Read the specified PV
         print("Getting XYZ Coordinates")
-        pv = self.pvs.get(pv_name)
-        print(pv)
         max_retries = 4
 
         for attempt in range(max_retries):
-            selected_pin = pv.get()
-            
+            selected_pin = self.pvs[pv_name].get(timeout=5)
 
             if selected_pin is not None:
                 self.sample_string = selected_pin
-                #pv.disconnect()
                 break  # Exit the loop if we got a value
             else:
                 print(f"Attempt {attempt + 1} of {max_retries}: PV {pv_name} returned None. Retrying...")
@@ -45,6 +50,7 @@ class MX_Robot:
         try:
             puck, pin_str = selected_pin.split(",")
             pin = int(pin_str)  # Convert pin number to integer
+
         except (ValueError, AttributeError) as e:
             print(f"Error parsing {pv_name} value '{selected_pin}': {e}")
             return None  # Return None or appropriate error value
@@ -91,40 +97,53 @@ class MX_Robot:
         speed = 2
         self.robot.Move_to_Position(Var_LSCAT.Path_Near_Dewer, speed, speed)
 
+    #Set-Up and call of Mounting Sample Function
     def mount_pin(self):
 
         print("Checking Pin Mount Status..")
-        sample_loaded_pv = self.pvs.get('Sample Mounted')
+        #sample_loaded_pv = self.pvs.get('Sample Mounted')
 
-        if sample_loaded_pv.get() == 1:
+
+        #Check if there is a sample mounted to avoid possible crash
+        if self.pvs['Sample Mounted'].get(use_monitor=False) == 1:
             print("ERROR: Sample is already mounted")
             return
 
         print("No Sample Mounted.")
         print("Mounting Sample..")
 
-        time.sleep(1)
-
         position = self.get_coords('Sample To Mount')
-        time.sleep(1)
-        print(f"Position: {position}")
+
+        if position is not None:
+            time.sleep(1)
+            print(f"Position: {position}")
+
+        else: 
+            print('ERROR: get_coords returned None value. Exiting function...')
+            return
         
+        #Set MD3 phase to move to sample mount position
         self.pvs['Set Phase (Mount Mode)'].put(3)
         starttime = time.time()
-        MD3_state = self.pvs.get('MD3 State')
-        time.sleep(0.5)
-        print(MD3_state)
+        #MD3_state = self.pvs.get('MD3 State')
 
         try:
+            #Wait for MD3 to move into mount state
             while time.time() - starttime < 15:
-                if MD3_state.get(use_monitor=False) == 4:
+                if self.pvs['MD3 State'].get(use_monitor=False) == 4:
                     print("MD3 in correct position, mounting sample.")
                     self.mount_move(position)
 
                     time.sleep(1)
 
                     print(f"Sample to set: {self.sample_string}")
-                    self.pvs['Current Sample'].put(self.sample_string)
+                    yay = self.pvs['Current Sample'].put(self.sample_string, wait=True, timeout=10)
+
+                    if not yay:
+                        print("ERROR: Could not update CurrentSample PV")
+                        return
+                        
+                    time.sleep(1)
                     print(f"Current Sample Set to: {self.sample_string}")
                     print(f'Sample Mounted. Movinng MD3 to Data Collection Position')
                     self.pvs['Set Phase (Mount Mode)'].put(2)
@@ -140,6 +159,8 @@ class MX_Robot:
         except Exception as e:
             print(f"Error occured during mount_pin function! {e}")
 
+
+    #Base level robotic motion commands for mounting samples
     def mount_move(self, pin_to_mount):
         speed = 0.75
 
@@ -165,13 +186,13 @@ class MX_Robot:
             print(f"Error During Initial Robot Movement: {e}")
             return
 
+        self.pvs['Cryo Status'].put(1)
         starttime = time.time()
-        Cryo_Status = self.pvs.get('Cryo Status')
-        Cryo_Status.put(1)
-
+        #Cryo_Status = self.pvs.get('Cryo Status')
+       
         try:
             while time.time() - starttime < 4:
-                if Cryo_Status.get(use_monitor=False) == 1:
+                if self.pvs['Cryo Status'].get(use_monitor=False) == 1:
                     print("CRYO in correct position, mounting sample.")
                     time.sleep(1)
                     self.robot.Move_to_Position(Var_LSCAT.MD3_Approach, speed, speed)
@@ -184,7 +205,7 @@ class MX_Robot:
                     speed = 0.1
                     self.robot.Move_to_Position(Var_LSCAT.MD3_Approach, speed, speed)
                     self.robot.Move_to_Position(Var_LSCAT.Wait_for_Cryo, speed, speed)
-                    Cryo_Status.put(0)
+                    self.pvs['Cryo Status'].put(0)
 
                     speed = 2
                     self.robot.Move_to_Position(Var_LSCAT.Path_Near_Dewer, speed, speed)
@@ -210,13 +231,13 @@ class MX_Robot:
         except Exception as e:
             print(f"Sample Could not be mounted! {e}")
 
-
+    #Set-Up and call of dismounting pin function
     def dismount_pin(self):
 
         print("Checking Pin Mount Status..")
-        sample_loaded_pv = self.pvs.get('Sample Mounted')
+        #sample_loaded_pv = self.pvs.get('Sample Mounted')
 
-        if sample_loaded_pv.get(use_monitor=False) == 0:
+        if self.pvs['Sample Mounted'].get(use_monitor=False) == 0:
             print("No sample mounted!")
             return
         
@@ -230,7 +251,6 @@ class MX_Robot:
             if self.pvs['MD3 State'].get() == 4:
                 print("MD3 in correct position, dismounting sample.")
                 self.dismount_move(position)
-                #self.pvs['UR5:CurrentSample'].put('None,0')
                 break
             time.sleep(1)
 
@@ -238,7 +258,7 @@ class MX_Robot:
             print("TIMEOUT: MD3 response took too long to respond")
             return
         
-
+    #Base Level commands for dismounting sample
     def dismount_move(self, pin_to_dismount):
         speed = 2
 
@@ -260,15 +280,15 @@ class MX_Robot:
             return
         
         #Set Up CRYO PV and call for retraction
-        Cryo_Status = self.pvs.get('Cryo Status')
-        Cryo_Status.put(1)
+        #Cryo_Status = self.pvs.get('Cryo Status')
+        self.pvs['Cryo Status'].put(1)
         starttime = time.time()
 
 
         #Check CRYO Retracted, then mount sample
         try:
             while time.time() - starttime < 5:
-                if Cryo_Status.get(use_monitor=False) == 1:
+                if self.pvs['Cryo Status'].get(use_monitor=False) == 1:
 
                     print("CRYO Retracted! Continuing dismount...")
 
@@ -282,7 +302,7 @@ class MX_Robot:
                     speed = 0.1
                     self.robot.Move_to_Position(Var_LSCAT.MD3_Approach, speed, speed)
                     self.robot.Move_to_Position(Var_LSCAT.Wait_for_Cryo, speed, speed)
-                    Cryo_Status.put(0)
+                    self.pvs['Cryo Status'].put(0)
 
                     #self.path_from_MD3()
                     
@@ -295,7 +315,7 @@ class MX_Robot:
                     self.robot.MXGripper('off')
                     time.sleep(0.5)
                     self.robot.Move_to_Position(pin_offset_pos, speed, speed)
-                    self.robot.Move_to_Position(Var_LSCAT.Wait_Pos, speed, speed)
+                    #self.robot.Move_to_Position(Var_LSCAT.Wait_Pos, speed, speed)
                     print("Dismount Complete.")
                     break
 
@@ -312,14 +332,22 @@ class MX_Robot:
         #If dismount fails, move to safe location
         except Exception as e:
             print(f"Error occured during dismount process:  {e}")
-            #self.robot.Move_to_Position(Var_LSCAT.Path_Near_Dewer, speed, 0.5)
-            #self.robot.Move_to_Position(Var_LSCAT.Wait_Pos, speed, 0.5)
             return
 
     def exchange_pin(self):
         self.dismount_pin()
-        time.sleep(1)
+        time.sleep(2)
         self.mount_pin()
+        
+    def wait_for_pv_ready(self, pv_name, timeout=10):
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            if self.pvs[pv_name].wait_for_connection:
+
+                return
+            time.sleep(0.1)
+        raise TimeoutError(f"PV '{pv_name}' did not become ready within {timeout} seconds.")
+
 
     def go_to_wait(self):
         self.robot.Move_to_Position(Var_LSCAT.MX_Wait_Pos, 0.5, 0.5)

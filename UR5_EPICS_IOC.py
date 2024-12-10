@@ -1,6 +1,7 @@
 from caproto.server import pvproperty, PVGroup, ioc_arg_parser, run, PvpropertyString
 from caproto import ChannelType
 from MX_Robot import MX_Robot
+import asyncio
 
 # Assuming your UR5Robot class now takes puck and sample arguments for mount and exchange
 # from ur5_robot import UR5Robot
@@ -23,27 +24,27 @@ class UR5RobotIOC(PVGroup):
     @MountSample.putter
     async def MountSample(self, instance, value):
         if value == 1:
-            self.Robot.mount_pin()
+            await asyncio.to_thread(self.Robot.mount_pin)
         return 0  # Reset to 0 after call
 
     @DismountSample.putter
     async def DismountSample(self, instance, value):
         if value == 1:
-            self.Robot.dismount_pin()
+            await asyncio.to_thread(self.Robot.dismount_pin)
             print("Hello you dismounted")
         return 0
 
     @ExchangeSample.putter
     async def ExchangeSample(self, instance, value):
         if value == 1:
-            self.Robot.exchange_pin()
+            await asyncio.to_thread(self.Robot.exchange_pin)
             print("You Exchanged Samples")
         return 0
     
     @GoHome.putter
     async def GoHome(self, instance, value):
         if value == 1:
-            self.Robot.go_to_wait()
+            await self.Robot.go_to_wait()
             print("You Went home ")
         return 0
 
