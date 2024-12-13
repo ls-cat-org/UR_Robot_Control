@@ -5,15 +5,15 @@ from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QLineEdi
 from PyQt6.QtCore import Qt
 
 # Load PV configurations from JSON file
-def load_pvs(json_file):
-    file_path = os.path.join("DataFiles", "MD3_PV_config.json")
+def load_pvs():
+    file_path = os.path.join(os.path.dirname(__file__), "DataFiles", "PV_config.json")
     with open(file_path, 'r') as f:
         pv_data = json.load(f)
         print(pv_data)
     return {name: PV(address) for name, address in pv_data.items()}
 
 # Initialize the PVs
-pvs = load_pvs('file.json')
+pvs = load_pvs()
 
 class PVControlGUI(QWidget):
     def __init__(self):
@@ -66,7 +66,7 @@ class PVControlGUI(QWidget):
 
         if pv:
             # Retrieve the value of the PV using caget
-            value = caget(pv.pvname)
+            value = caget(pv.pvname, use_monitor=False)
             
             # Check if the value is numeric or a string
             if isinstance(value, (int, float)):
@@ -118,7 +118,7 @@ class PVControlGUI(QWidget):
 
         if pv:
             # Retrieve the value of the PV using caget
-            value = caget(pv.pvname)
+            value = caget(pv.pvname, use_monitor=False)
             print(f"Retrieved PV value: {value}")  # Debugging print
 
             # Check if the value is None or not in the expected format
